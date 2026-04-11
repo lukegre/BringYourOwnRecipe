@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from bring_api import Bring
 
 from app.claude_client import extract_ingredients
-from app.bring_client import get_lists, add_ingredients
+from app.bring_client import create_recipe
 
 SUPPORTED_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"}
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
@@ -38,12 +38,6 @@ async def index():
     return FileResponse(os.path.join(_STATIC_DIR, "index.html"))
 
 
-@app.get("/api/lists")
-async def api_lists(request: Request):
-    bring: Bring = request.app.state.bring
-    return {"lists": await get_lists(bring)}
-
-
 @app.post("/api/extract")
 async def api_extract(image: UploadFile = File(...)):
     media_type = image.content_type or "image/jpeg"
@@ -54,28 +48,35 @@ async def api_extract(image: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=f"Unsupported image type: {media_type}")
     contents = await image.read()
     try:
-        ingredients = await extract_ingredients(contents, media_type)
+        result = await extract_ingredients(contents, media_type)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Ingredient extraction failed: {exc}")
-    return {"ingredients": ingredients}
+    return {
+        "recipe_name": result.get("recipe_name", ""),
+        "ingredients": result.get("ingredients", []),
+    }
 
 
-class Ingredient(BaseModel):
+class IngredientItem(BaseModel):
     name: str
     quantity: str = ""
 
 
-class AddRequest(BaseModel):
-    list_uuid: str
-    ingredients: list[Ingredient]
+class SaveRecipeRequest(BaseModel):
+    recipe_name: str
+    ingredients: list[IngredientItem]
 
 
-@app.post("/api/add")
-async def api_add(body: AddRequest, request: Request):
+@app.post("/api/save-recipe")
+async def api_save_recipe(body: SaveRecipeRequest, request: Request):
+    if not body.recipe_name.strip():
+        raise HTTPException(status_code=400, detail="Recipe name is required.")
+    if not body.ingredients:
+        raise HTTPException(status_code=400, detail="No ingredients provided.")
     bring: Bring = request.app.state.bring
-    count = await add_ingredients(
+    uuid = await create_recipe(
         bring,
-        body.list_uuid,
+        body.recipe_name.strip(),
         [{"name": i.name, "quantity": i.quantity} for i in body.ingredients],
     )
-    return {"added": count}
+    return {"uuid": uuid, "count": len(body.ingredients)}

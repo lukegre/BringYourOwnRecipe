@@ -110,6 +110,31 @@
     .loading-text { color: #666; font-size: 1rem; }
 
     /* ── Preview state ── */
+    .recipe-name-wrap {
+      margin-bottom: 20px;
+    }
+
+    .recipe-name-wrap label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+      color: #444;
+    }
+
+    #recipe-name {
+      width: 100%;
+      font-size: 1.05rem;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: #fff;
+      color: #222;
+      outline: none;
+    }
+
+    #recipe-name:focus { border-color: #4caf50; }
+
     .ingredient-list {
       list-style: none;
       display: flex;
@@ -161,35 +186,6 @@
     }
 
     .ing-qty:focus { border-color: #4caf50; }
-
-    .list-select-wrap {
-      margin-bottom: 16px;
-    }
-
-    .list-select-wrap label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 6px;
-      font-size: 0.95rem;
-      color: #444;
-    }
-
-    #list-select {
-      width: 100%;
-      min-height: 48px;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      padding: 8px 12px;
-      background: #fff;
-      color: #222;
-      outline: none;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 36px;
-    }
 
     /* ── Buttons ── */
     .btn {
@@ -259,7 +255,7 @@
   <!-- State 1: Upload -->
   <section id="state-upload">
     <h1>BringYourOwnRecipe</h1>
-    <p class="subtitle">Take a photo of any recipe and send the ingredients straight to Bring!</p>
+    <p class="subtitle">Take a photo of any recipe and save it straight to Bring!</p>
     <div class="upload-area">
       <label for="photo-input" class="upload-label">
         <span class="icon">📷</span>
@@ -280,13 +276,13 @@
 
   <!-- State 3: Preview & Confirm -->
   <section id="state-preview" hidden>
-    <h2>Ingredients found</h2>
-    <ul class="ingredient-list" id="ingredient-list"></ul>
-    <div class="list-select-wrap">
-      <label for="list-select">Add to Bring! list:</label>
-      <select id="list-select"></select>
+    <h2>Review recipe</h2>
+    <div class="recipe-name-wrap">
+      <label for="recipe-name">Recipe name:</label>
+      <input id="recipe-name" type="text" placeholder="e.g. Spaghetti Bolognese" autocomplete="off">
     </div>
-    <button class="btn btn-primary" id="btn-confirm">Add to Bring!</button>
+    <ul class="ingredient-list" id="ingredient-list"></ul>
+    <button class="btn btn-primary" id="btn-confirm">Save to Bring!</button>
     <button class="btn btn-secondary" id="btn-back">Take another photo</button>
   </section>
 
@@ -294,7 +290,7 @@
   <section id="state-done" hidden>
     <div class="done-wrap">
       <span class="done-icon">✅</span>
-      <h2>Done!</h2>
+      <h2>Recipe saved!</h2>
       <p id="done-msg"></p>
       <button class="btn btn-primary" id="btn-restart">Scan another recipe</button>
     </div>
@@ -330,25 +326,6 @@
       .replace(/"/g, '&quot;');
   }
 
-  // ── Load Bring! lists on startup ──
-  async function loadLists() {
-    try {
-      const res = await fetch('/api/lists');
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      const sel = $('list-select');
-      sel.innerHTML = '';
-      for (const lst of data.lists) {
-        const opt = document.createElement('option');
-        opt.value = lst.uuid;
-        opt.textContent = lst.name;
-        sel.appendChild(opt);
-      }
-    } catch (err) {
-      showError('Could not load Bring! lists: ' + err.message);
-    }
-  }
-
   // ── Step 1: Photo selected ──
   $('photo-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -375,7 +352,9 @@
       const data = await res.json();
       extractedIngredients = data.ingredients;
       renderIngredients(extractedIngredients);
+      $('recipe-name').value = data.recipe_name || '';
       showState('state-preview');
+      $('recipe-name').focus();
     } catch (err) {
       showError('Extraction failed: ' + err.message);
       showState('state-upload');
@@ -403,10 +382,10 @@
     });
   }
 
-  // ── Step 3: Confirm & send to Bring! ──
+  // ── Step 3: Save recipe to Bring! ──
   $('btn-confirm').addEventListener('click', async () => {
-    const listUuid = $('list-select').value;
-    if (!listUuid) { showError('No Bring! list selected.'); return; }
+    const recipeName = $('recipe-name').value.trim();
+    if (!recipeName) { showError('Please enter a recipe name.'); $('recipe-name').focus(); return; }
 
     const items = [];
     document.querySelectorAll('#ingredient-list input[type=checkbox]').forEach(cb => {
@@ -419,25 +398,25 @@
 
     if (!items.length) { showError('No items selected.'); return; }
 
-    $('loading-text').textContent = 'Adding to Bring!…';
+    $('loading-text').textContent = 'Saving recipe to Bring!…';
     showState('state-loading');
 
     try {
-      const res = await fetch('/api/add', {
+      const res = await fetch('/api/save-recipe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ list_uuid: listUuid, ingredients: items }),
+        body: JSON.stringify({ recipe_name: recipeName, ingredients: items }),
       });
       if (!res.ok) {
         const detail = await res.json().then(d => d.detail).catch(() => res.statusText);
         throw new Error(detail);
       }
       const data = await res.json();
-      const listName = $('list-select').selectedOptions[0]?.text || 'your list';
-      $('done-msg').textContent = `${data.added} ingredient${data.added === 1 ? '' : 's'} added to "${listName}".`;
+      $('done-msg').textContent =
+        `"${recipeName}" saved with ${data.count} ingredient${data.count === 1 ? '' : 's'}. Find it in Bring! under Recipes → Mine.`;
       showState('state-done');
     } catch (err) {
-      showError('Could not add to Bring!: ' + err.message);
+      showError('Could not save recipe: ' + err.message);
       showState('state-preview');
     }
   });
@@ -450,11 +429,9 @@
     const img = $('preview-img');
     img.src = '';
     img.style.display = 'none';
+    $('recipe-name').value = '';
     showState('state-upload');
   });
-
-  // Kick off
-  loadLists();
 </script>
 </body>
 </html>

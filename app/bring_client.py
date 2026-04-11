@@ -1,25 +1,31 @@
 from typing import Any
 
 from bring_api import Bring
+from bring_api.types import BringTemplate, Ingredient, TemplateType
 
 
 async def get_lists(bring: Bring) -> list[dict[str, Any]]:
     raw = await bring.load_lists()
     return [
-        {"uuid": lst["listUuid"], "name": lst["name"]}
-        for lst in raw["lists"]
+        {"uuid": lst.listUuid, "name": lst.name}
+        for lst in raw.lists
     ]
 
 
-async def add_ingredients(
+async def create_recipe(
     bring: Bring,
-    list_uuid: str,
+    recipe_name: str,
     ingredients: list[dict[str, Any]],
-) -> int:
-    for item in ingredients:
-        await bring.save_item(
-            list_uuid,
-            item["name"],
-            item.get("quantity", ""),
+) -> str:
+    """Create a Bring! recipe and return its UUID."""
+    items = [
+        Ingredient(
+            itemId=item["name"],
+            stock=False,
+            spec=item.get("quantity") or None,
         )
-    return len(ingredients)
+        for item in ingredients
+    ]
+    template = BringTemplate(name=recipe_name, items=items)
+    result = await bring.create_template(template, TemplateType.RECIPE)
+    return result.uuid or ""
