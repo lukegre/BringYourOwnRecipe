@@ -8,13 +8,14 @@ import aiohttp
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from bring_api import Bring
 
 from app.claude_client import extract_ingredients
 from app.bring_client import create_recipe
 
 SUPPORTED_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 
@@ -47,10 +48,12 @@ async def api_extract(image: UploadFile = File(...)):
     if media_type not in SUPPORTED_TYPES:
         raise HTTPException(status_code=400, detail=f"Unsupported image type: {media_type}")
     contents = await image.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Image too large. Maximum size is 10 MB.")
     try:
         result = await extract_ingredients(contents, media_type)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Ingredient extraction failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=502, detail="Ingredient extraction failed.")
     return {
         "recipe_name": result.get("recipe_name", ""),
         "ingredients": result.get("ingredients", []),
@@ -58,13 +61,13 @@ async def api_extract(image: UploadFile = File(...)):
 
 
 class IngredientItem(BaseModel):
-    name: str
-    quantity: str = ""
+    name: str = Field(..., max_length=200)
+    quantity: str = Field("", max_length=100)
 
 
 class SaveRecipeRequest(BaseModel):
-    recipe_name: str
-    ingredients: list[IngredientItem]
+    recipe_name: str = Field(..., max_length=200)
+    ingredients: list[IngredientItem] = Field(..., max_length=200)
 
 
 @app.post("/api/save-recipe")

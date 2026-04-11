@@ -61,4 +61,26 @@ async def extract_ingredients(
     raw_text = re.sub(r"\n?```$", "", raw_text)
 
     result: dict[str, Any] = json.loads(raw_text)
-    return result
+
+    # Validate and sanitise the structure returned by Claude.
+    if not isinstance(result, dict):
+        raise ValueError("Unexpected response format from Claude.")
+    recipe_name = result.get("recipe_name", "")
+    if not isinstance(recipe_name, str):
+        recipe_name = ""
+    raw_ingredients = result.get("ingredients", [])
+    if not isinstance(raw_ingredients, list):
+        raw_ingredients = []
+    ingredients = []
+    for item in raw_ingredients:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name", "")
+        quantity = item.get("quantity", "")
+        if not isinstance(name, str):
+            name = ""
+        if not isinstance(quantity, str):
+            quantity = ""
+        ingredients.append({"name": name, "quantity": quantity})
+
+    return {"recipe_name": recipe_name, "ingredients": ingredients}
