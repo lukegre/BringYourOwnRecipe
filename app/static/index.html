@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>BringYourOwnRecipe</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 18px;
+      line-height: 1.5;
+      background: #f5f5f5;
+      color: #222;
+      min-height: 100dvh;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #1a1a1a;
+    }
+
+    h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 0.95rem;
+      margin-bottom: 28px;
+    }
+
+    /* ── Upload state ── */
+    .upload-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .upload-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 160px;
+      background: #fff;
+      border: 2px dashed #bbb;
+      border-radius: 16px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #444;
+      transition: border-color 0.2s, background 0.2s;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .upload-label:active {
+      background: #f0faf0;
+      border-color: #4caf50;
+    }
+
+    .upload-label .icon { font-size: 2.8rem; }
+
+    #photo-input { display: none; }
+
+    #preview-img {
+      width: 100%;
+      max-height: 260px;
+      object-fit: contain;
+      border-radius: 12px;
+      background: #eee;
+      display: none;
+    }
+
+    /* ── Loading state ── */
+    .loading-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 40px 0;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 5px solid #ddd;
+      border-top-color: #4caf50;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text { color: #666; font-size: 1rem; }
+
+    /* ── Preview state ── */
+    .ingredient-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .ingredient-list li {
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+
+    .ingredient-list input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      accent-color: #4caf50;
+      cursor: pointer;
+    }
+
+    .ing-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 1rem;
+      border: none;
+      background: transparent;
+      color: #222;
+      outline: none;
+    }
+
+    .ing-name:focus { border-bottom: 1px solid #4caf50; }
+
+    .ing-qty {
+      width: 80px;
+      flex-shrink: 0;
+      font-size: 0.9rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 4px 6px;
+      color: #555;
+      background: #fafafa;
+      outline: none;
+    }
+
+    .ing-qty:focus { border-color: #4caf50; }
+
+    .list-select-wrap {
+      margin-bottom: 16px;
+    }
+
+    .list-select-wrap label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+      color: #444;
+    }
+
+    #list-select {
+      width: 100%;
+      min-height: 48px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 8px 12px;
+      background: #fff;
+      color: #222;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: block;
+      width: 100%;
+      min-height: 56px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: opacity 0.15s;
+    }
+
+    .btn:active { opacity: 0.8; }
+
+    .btn-primary {
+      background: #4caf50;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: #444;
+      border: 1px solid #ccc;
+    }
+
+    /* ── Done state ── */
+    .done-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 32px 0;
+      text-align: center;
+    }
+
+    .done-icon { font-size: 4rem; }
+
+    #done-msg {
+      color: #555;
+      font-size: 1rem;
+    }
+
+    /* ── Error banner ── */
+    #error-banner {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 440px;
+      width: calc(100% - 32px);
+      background: #d32f2f;
+      color: #fff;
+      padding: 14px 18px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      z-index: 999;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- State 1: Upload -->
+  <section id="state-upload">
+    <h1>BringYourOwnRecipe</h1>
+    <p class="subtitle">Take a photo of any recipe and send the ingredients straight to Bring!</p>
+    <div class="upload-area">
+      <label for="photo-input" class="upload-label">
+        <span class="icon">📷</span>
+        <span>Take or choose a photo</span>
+      </label>
+      <input id="photo-input" type="file" accept="image/*" capture="environment">
+      <img id="preview-img" alt="Recipe preview">
+    </div>
+  </section>
+
+  <!-- State 2: Loading -->
+  <section id="state-loading" hidden>
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <p class="loading-text" id="loading-text">Extracting ingredients…</p>
+    </div>
+  </section>
+
+  <!-- State 3: Preview & Confirm -->
+  <section id="state-preview" hidden>
+    <h2>Ingredients found</h2>
+    <ul class="ingredient-list" id="ingredient-list"></ul>
+    <div class="list-select-wrap">
+      <label for="list-select">Add to Bring! list:</label>
+      <select id="list-select"></select>
+    </div>
+    <button class="btn btn-primary" id="btn-confirm">Add to Bring!</button>
+    <button class="btn btn-secondary" id="btn-back">Take another photo</button>
+  </section>
+
+  <!-- State 4: Done -->
+  <section id="state-done" hidden>
+    <div class="done-wrap">
+      <span class="done-icon">✅</span>
+      <h2>Done!</h2>
+      <p id="done-msg"></p>
+      <button class="btn btn-primary" id="btn-restart">Scan another recipe</button>
+    </div>
+  </section>
+
+</div>
+
+<div id="error-banner" hidden></div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const STATES = ['state-upload', 'state-loading', 'state-preview', 'state-done'];
+
+  let extractedIngredients = [];
+
+  function showState(id) {
+    STATES.forEach(s => document.getElementById(s).hidden = (s !== id));
+  }
+
+  function showError(msg) {
+    const banner = $('error-banner');
+    banner.textContent = msg;
+    banner.hidden = false;
+    clearTimeout(banner._timer);
+    banner._timer = setTimeout(() => { banner.hidden = true; }, 6000);
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Load Bring! lists on startup ──
+  async function loadLists() {
+    try {
+      const res = await fetch('/api/lists');
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const sel = $('list-select');
+      sel.innerHTML = '';
+      for (const lst of data.lists) {
+        const opt = document.createElement('option');
+        opt.value = lst.uuid;
+        opt.textContent = lst.name;
+        sel.appendChild(opt);
+      }
+    } catch (err) {
+      showError('Could not load Bring! lists: ' + err.message);
+    }
+  }
+
+  // ── Step 1: Photo selected ──
+  $('photo-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Show thumbnail
+    const objectUrl = URL.createObjectURL(file);
+    const img = $('preview-img');
+    img.src = objectUrl;
+    img.style.display = 'block';
+
+    $('loading-text').textContent = 'Extracting ingredients…';
+    showState('state-loading');
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await fetch('/api/extract', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const detail = await res.json().then(d => d.detail).catch(() => res.statusText);
+        throw new Error(detail);
+      }
+      const data = await res.json();
+      extractedIngredients = data.ingredients;
+      renderIngredients(extractedIngredients);
+      showState('state-preview');
+    } catch (err) {
+      showError('Extraction failed: ' + err.message);
+      showState('state-upload');
+    }
+  });
+
+  // ── Step 2: Render editable ingredient list ──
+  function renderIngredients(ingredients) {
+    const ul = $('ingredient-list');
+    ul.innerHTML = '';
+    if (ingredients.length === 0) {
+      ul.innerHTML = '<li style="color:#888;padding:12px">No ingredients found. Try a clearer photo.</li>';
+      return;
+    }
+    ingredients.forEach((item, i) => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <input type="checkbox" data-index="${i}" checked>
+        <input type="text" class="ing-name" data-index="${i}"
+               value="${escHtml(item.name)}" placeholder="ingredient">
+        <input type="text" class="ing-qty" data-index="${i}"
+               value="${escHtml(item.quantity)}" placeholder="qty">
+      `;
+      ul.appendChild(li);
+    });
+  }
+
+  // ── Step 3: Confirm & send to Bring! ──
+  $('btn-confirm').addEventListener('click', async () => {
+    const listUuid = $('list-select').value;
+    if (!listUuid) { showError('No Bring! list selected.'); return; }
+
+    const items = [];
+    document.querySelectorAll('#ingredient-list input[type=checkbox]').forEach(cb => {
+      if (!cb.checked) return;
+      const i = cb.dataset.index;
+      const name = document.querySelector(`.ing-name[data-index="${i}"]`).value.trim();
+      const qty  = document.querySelector(`.ing-qty[data-index="${i}"]`).value.trim();
+      if (name) items.push({ name, quantity: qty });
+    });
+
+    if (!items.length) { showError('No items selected.'); return; }
+
+    $('loading-text').textContent = 'Adding to Bring!…';
+    showState('state-loading');
+
+    try {
+      const res = await fetch('/api/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ list_uuid: listUuid, ingredients: items }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().then(d => d.detail).catch(() => res.statusText);
+        throw new Error(detail);
+      }
+      const data = await res.json();
+      const listName = $('list-select').selectedOptions[0]?.text || 'your list';
+      $('done-msg').textContent = `${data.added} ingredient${data.added === 1 ? '' : 's'} added to "${listName}".`;
+      showState('state-done');
+    } catch (err) {
+      showError('Could not add to Bring!: ' + err.message);
+      showState('state-preview');
+    }
+  });
+
+  // ── Navigation ──
+  $('btn-back').addEventListener('click', () => showState('state-upload'));
+
+  $('btn-restart').addEventListener('click', () => {
+    $('photo-input').value = '';
+    const img = $('preview-img');
+    img.src = '';
+    img.style.display = 'none';
+    showState('state-upload');
+  });
+
+  // Kick off
+  loadLists();
+</script>
+</body>
+</html>
