@@ -1,0 +1,11 @@
+#!/bin/bash
+osascript - "/Users/luke/Git/BringYourOwnRecipe" "/Users/luke/Git/BringYourOwnRecipe/.venv" <<'APPLESCRIPT'
+on run argv
+    set proj to item 1 of argv
+    set venv to item 2 of argv
+    tell application "Terminal"
+        activate
+        do script "cd " & quoted form of proj & " && source " & quoted form of venv & "/bin/activate && byor"
+    end tell
+end run
+APPLESCRIPT
