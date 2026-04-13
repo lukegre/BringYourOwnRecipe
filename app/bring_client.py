@@ -27,5 +27,5 @@ async def create_recipe(
         for item in ingredients
     ]
     template = BringTemplate(name=recipe_name, items=items)
-    result = await bring.create_template(template, TemplateType.RECIPE)
+    result = await bring.create_template(template, TemplateType.TEMPLATE)
     return result.uuid or ""
