@@ -72,9 +72,13 @@ async def api_extract(image: UploadFile = File(...)):
         result = await extract_ingredients(contents, media_type)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Ingredient extraction failed: {exc}")
+    ingredients = [
+        {"name": i["name"].title(), "quantity": i.get("quantity", "")}
+        for i in result.get("ingredients", [])
+    ]
     return {
         "recipe_name": result.get("recipe_name", ""),
-        "ingredients": result.get("ingredients", []),
+        "ingredients": ingredients,
         "instructions": result.get("instructions", ""),
     }
 

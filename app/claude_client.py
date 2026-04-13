@@ -13,12 +13,13 @@ _PROMPT = (
     "Return ONLY a JSON object — no prose, no markdown fences — with exactly three keys: "
     '"recipe_name" (the name of the recipe as a string, or an empty string if not visible), '
     '"ingredients" (a JSON array of objects, each with exactly two string keys: '
-    '"name" (the ingredient name, e.g. "plain flour") and '
-    '"quantity" (the amount and unit, e.g. "200g" or "2 tbsp"; use an empty string if not stated)), '
+    '"name" (the ingredient name written in Title Case, e.g. "Plain Flour") and '
+    '"quantity" (the amount and unit, e.g. "200g" or "2 tbsp"; use an empty string if not stated). '
+    'Exclude any ingredients marked as optional.), '
     'and "instructions" (a single string with the cooking method/steps as plain text, '
     'preserving numbered steps if present; use an empty string if no method is visible). '
     'Example output: {"recipe_name": "Banana Bread", '
-    '"ingredients": [{"name": "plain flour", "quantity": "200g"}, {"name": "baking powder", "quantity": "1 tsp"}], '
+    '"ingredients": [{"name": "Plain Flour", "quantity": "200g"}, {"name": "Baking Powder", "quantity": "1 tsp"}], '
     '"instructions": "1. Preheat oven to 180\u00b0C.\\n2. Mix ingredients together.\\n3. Bake for 40 min."}'
 )
 
