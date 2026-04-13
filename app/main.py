@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import uuid as uuid_lib
 import aiohttp
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -15,7 +16,11 @@ from app.claude_client import extract_ingredients
 from app.bring_client import create_recipe
 
 SUPPORTED_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"}
+_MEDIA_TYPE_TO_EXT = {"image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp"}
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+_UPLOADS_DIR = os.path.join(_STATIC_DIR, "uploads")
+os.makedirs(_UPLOADS_DIR, exist_ok=True)
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000").rstrip("/")
 
 
 @asynccontextmanager
@@ -47,6 +52,14 @@ async def api_extract(image: UploadFile = File(...)):
     if media_type not in SUPPORTED_TYPES:
         raise HTTPException(status_code=400, detail=f"Unsupported image type: {media_type}")
     contents = await image.read()
+
+    # Save image so it can be used as the recipe cover photo
+    ext = _MEDIA_TYPE_TO_EXT.get(media_type, "jpg")
+    filename = f"{uuid_lib.uuid4().hex}.{ext}"
+    with open(os.path.join(_UPLOADS_DIR, filename), "wb") as f:
+        f.write(contents)
+    image_url = f"{BASE_URL}/static/uploads/{filename}"
+
     try:
         result = await extract_ingredients(contents, media_type)
     except Exception as exc:
@@ -54,6 +67,8 @@ async def api_extract(image: UploadFile = File(...)):
     return {
         "recipe_name": result.get("recipe_name", ""),
         "ingredients": result.get("ingredients", []),
+        "instructions": result.get("instructions", ""),
+        "image_url": image_url,
     }
 
 
@@ -65,6 +80,9 @@ class IngredientItem(BaseModel):
 class SaveRecipeRequest(BaseModel):
     recipe_name: str
     ingredients: list[IngredientItem]
+    instructions: str = ""
+    image_url: str = ""
+    use_cover_photo: bool = True
 
 
 @app.post("/api/save-recipe")
@@ -74,9 +92,12 @@ async def api_save_recipe(body: SaveRecipeRequest, request: Request):
     if not body.ingredients:
         raise HTTPException(status_code=400, detail="No ingredients provided.")
     bring: Bring = request.app.state.bring
-    uuid = await create_recipe(
+    image_url = body.image_url if (body.use_cover_photo and body.image_url) else None
+    recipe_uuid = await create_recipe(
         bring,
         body.recipe_name.strip(),
         [{"name": i.name, "quantity": i.quantity} for i in body.ingredients],
+        instructions=body.instructions.strip() or None,
+        image_url=image_url,
     )
-    return {"uuid": uuid, "count": len(body.ingredients)}
+    return {"uuid": recipe_uuid, "count": len(body.ingredients)}

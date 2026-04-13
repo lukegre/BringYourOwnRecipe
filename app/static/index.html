@@ -187,6 +187,72 @@
 
     .ing-qty:focus { border-color: #4caf50; }
 
+    /* ── Instructions ── */
+    .instructions-wrap {
+      margin-bottom: 20px;
+    }
+
+    .instructions-wrap label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+      color: #444;
+    }
+
+    #instructions {
+      width: 100%;
+      min-height: 120px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: #fff;
+      color: #222;
+      outline: none;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    #instructions:focus { border-color: #4caf50; }
+
+    /* ── Cover photo toggle ── */
+    .cover-photo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+
+    .cover-photo-wrap img {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 8px;
+      flex-shrink: 0;
+      background: #eee;
+    }
+
+    .cover-photo-wrap label {
+      flex: 1;
+      font-size: 0.95rem;
+      color: #333;
+      cursor: pointer;
+    }
+
+    #use-cover-photo {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      accent-color: #4caf50;
+      cursor: pointer;
+    }
+
     /* ── Buttons ── */
     .btn {
       display: block;
@@ -281,6 +347,15 @@
       <label for="recipe-name">Recipe name:</label>
       <input id="recipe-name" type="text" placeholder="e.g. Spaghetti Bolognese" autocomplete="off">
     </div>
+    <div class="instructions-wrap">
+      <label for="instructions">Instructions:</label>
+      <textarea id="instructions" placeholder="Cooking method will appear here…"></textarea>
+    </div>
+    <div class="cover-photo-wrap" id="cover-photo-row" hidden>
+      <img id="cover-thumb" src="" alt="Cover photo">
+      <label for="use-cover-photo">Use as cover photo</label>
+      <input type="checkbox" id="use-cover-photo" checked>
+    </div>
     <ul class="ingredient-list" id="ingredient-list"></ul>
     <button class="btn btn-primary" id="btn-confirm">Save to Bring!</button>
     <button class="btn btn-secondary" id="btn-back">Take another photo</button>
@@ -305,6 +380,7 @@
   const STATES = ['state-upload', 'state-loading', 'state-preview', 'state-done'];
 
   let extractedIngredients = [];
+  let extractedImageUrl = '';
 
   function showState(id) {
     STATES.forEach(s => document.getElementById(s).hidden = (s !== id));
@@ -351,8 +427,17 @@
       }
       const data = await res.json();
       extractedIngredients = data.ingredients;
+      extractedImageUrl = data.image_url || '';
       renderIngredients(extractedIngredients);
       $('recipe-name').value = data.recipe_name || '';
+      $('instructions').value = data.instructions || '';
+      const coverRow = $('cover-photo-row');
+      if (extractedImageUrl) {
+        $('cover-thumb').src = extractedImageUrl;
+        coverRow.hidden = false;
+      } else {
+        coverRow.hidden = true;
+      }
       showState('state-preview');
       $('recipe-name').focus();
     } catch (err) {
@@ -405,7 +490,13 @@
       const res = await fetch('/api/save-recipe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipe_name: recipeName, ingredients: items }),
+        body: JSON.stringify({
+          recipe_name: recipeName,
+          ingredients: items,
+          instructions: $('instructions').value.trim(),
+          image_url: extractedImageUrl,
+          use_cover_photo: $('use-cover-photo').checked,
+        }),
       });
       if (!res.ok) {
         const detail = await res.json().then(d => d.detail).catch(() => res.statusText);
@@ -430,6 +521,10 @@
     img.src = '';
     img.style.display = 'none';
     $('recipe-name').value = '';
+    $('instructions').value = '';
+    extractedImageUrl = '';
+    $('cover-photo-row').hidden = true;
+    $('use-cover-photo').checked = true;
     showState('state-upload');
   });
 </script>

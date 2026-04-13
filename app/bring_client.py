@@ -16,6 +16,9 @@ async def create_recipe(
     bring: Bring,
     recipe_name: str,
     ingredients: list[dict[str, Any]],
+    *,
+    instructions: str | None = None,
+    image_url: str | None = None,
 ) -> str:
     """Create a Bring! recipe and return its UUID."""
     items = [
@@ -26,6 +29,11 @@ async def create_recipe(
         )
         for item in ingredients
     ]
-    template = BringTemplate(name=recipe_name, items=items)
+    template = BringTemplate(
+        name=recipe_name,
+        items=items,
+        tagline=instructions,
+        imageUrl=image_url,
+    )
     result = await bring.create_template(template, TemplateType.RECIPE)
     return result.uuid or ""
