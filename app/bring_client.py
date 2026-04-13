@@ -6,10 +6,7 @@ from bring_api.types import BringTemplate, Ingredient, TemplateType
 
 async def get_lists(bring: Bring) -> list[dict[str, Any]]:
     raw = await bring.load_lists()
-    return [
-        {"uuid": lst.listUuid, "name": lst.name}
-        for lst in raw.lists
-    ]
+    return [{"uuid": lst.listUuid, "name": lst.name} for lst in raw.lists]
 
 
 async def create_recipe(
