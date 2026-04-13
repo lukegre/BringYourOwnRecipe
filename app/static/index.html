@@ -443,7 +443,7 @@
       }
       const data = await res.json();
       $('done-msg').textContent =
-        `"${recipeName}" saved with ${data.count} ingredient${data.count === 1 ? '' : 's'}. Find it in Bring! under Recipes → Mine.`;
+        `"${recipeName}" saved with ${data.count} ingredient${data.count === 1 ? '' : 's'}. Find it in Bring! under My Templates.`;
       showState('state-done');
     } catch (err) {
       showError('Could not save recipe: ' + err.message);
