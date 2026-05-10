@@ -125,6 +125,20 @@
 
     .loading-text { color: #666; font-size: 1rem; }
 
+    /* ── Recipe photo thumbnail ── */
+    .recipe-photo-wrap {
+      margin-bottom: 20px;
+    }
+
+    #recipe-photo-thumb {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      background: #eee;
+      display: block;
+    }
+
     /* ── Preview state ── */
     .recipe-name-wrap {
       margin-bottom: 20px;
@@ -334,6 +348,9 @@
   <!-- State 3: Preview & Confirm -->
   <section id="state-preview" hidden>
     <h2>Review recipe</h2>
+    <div class="recipe-photo-wrap" id="recipe-photo-wrap" hidden>
+      <img id="recipe-photo-thumb" alt="Recipe photo">
+    </div>
     <div class="recipe-name-wrap">
       <label for="recipe-name">Recipe name:</label>
       <input id="recipe-name" type="text" placeholder="e.g. Spaghetti Bolognese" autocomplete="off">
@@ -369,6 +386,8 @@
   const STATES = ['state-upload', 'state-loading', 'state-preview', 'state-done'];
 
   let extractedIngredients = [];
+  let extractedImageUrl = '';
+  let previewObjectUrl = '';
 
   function showState(id) {
     STATES.forEach(s => document.getElementById(s).hidden = (s !== id));
@@ -395,10 +414,11 @@
     const file = e.target.files[0];
     if (!file) return;
 
-    // Show thumbnail
-    const objectUrl = URL.createObjectURL(file);
+    // Show thumbnail in upload state
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = URL.createObjectURL(file);
     const img = $('preview-img');
-    img.src = objectUrl;
+    img.src = previewObjectUrl;
     img.style.display = 'block';
 
     $('loading-text').textContent = 'Extracting ingredients…';
@@ -415,9 +435,19 @@
       }
       const data = await res.json();
       extractedIngredients = data.ingredients;
+      extractedImageUrl = data.image_url || '';
       renderIngredients(extractedIngredients);
       $('recipe-name').value = data.recipe_name || '';
       $('instructions').value = data.instructions || '';
+      // Show recipe photo in preview using the local blob URL for instant display
+      const thumb = $('recipe-photo-thumb');
+      const photoWrap = $('recipe-photo-wrap');
+      if (previewObjectUrl) {
+        thumb.src = previewObjectUrl;
+        photoWrap.hidden = false;
+      } else {
+        photoWrap.hidden = true;
+      }
       showState('state-preview');
       $('recipe-name').focus();
     } catch (err) {
@@ -474,6 +504,7 @@
           recipe_name: recipeName,
           ingredients: items,
           instructions: $('instructions').value.trim(),
+          image_url: extractedImageUrl,
         }),
       });
       if (!res.ok) {
@@ -491,7 +522,11 @@
   });
 
   // ── Navigation ──
-  $('btn-back').addEventListener('click', () => showState('state-upload'));
+  $('btn-back').addEventListener('click', () => {
+    extractedImageUrl = '';
+    $('recipe-photo-wrap').hidden = true;
+    showState('state-upload');
+  });
 
   $('btn-restart').addEventListener('click', () => {
     $('photo-input').value = '';
@@ -500,6 +535,9 @@
     img.style.display = 'none';
     $('recipe-name').value = '';
     $('instructions').value = '';
+    extractedImageUrl = '';
+    if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = ''; }
+    $('recipe-photo-wrap').hidden = true;
     showState('state-upload');
   });
 </script>
